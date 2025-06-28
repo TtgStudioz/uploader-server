@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Uploaded Files</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #1c2429;
+      color: whitesmoke;
+      margin: 0;
+      padding: 20px;
+      overflow-y: hidden;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 2em;
+    }
+
+    .table-container {
+      max-width: 900px;
+      margin: 0 auto;
+      overflow-x: auto;
+      height: 70vh;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #2a333a;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid #3a444b;
+    }
+
+    th {
+      background-color: #3d4a52;
+      color: #88c3f1;
+    }
+
+    td:first-child {
+      max-width: 0;
+      width: 100%;
+    }
+
+    td a.filename {
+      color: #59b7e4;
+      text-decoration: none;
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    td a.filename:hover {
+      text-decoration: underline;
+      color: #4a9dc3;
+    }
+
+    .delete-button {
+      cursor: pointer;
+      border: none;
+      background-color: #ed5555;
+      padding: 5px 10px;
+      border-radius: 360px;
+      color: whitesmoke;
+      transition: background-color 0.3s ease;
+    }
+
+    .delete-button:hover {
+      background-color: #c0392b;
+    }
+
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      text-decoration: none;
+      color: #59b7e4;
+      font-weight: bold;
+    }
+
+    .back-link:hover {
+      color: #4a9dc3;
+    }
+
+    .progress-bar-wrapper {
+      width: 90%;
+      max-width: 900px;
+      margin: 20px auto 0;
+      background: #333;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 20px;
+      background: #59b7e4;
+      width: 0%;
+      transition: width 0.5s ease;
+    }
+
+    .progress-label {
+      text-align: center;
+      margin: 8px;
+      font-size: 0.9em;
+      color: #ccc;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 0px;
+      }
+      table {
+        border-radius: 0px;
+      }
+      h1 {
+        font-size: 1.5em;
+      }
+      th, td {
+        padding: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- <h1>📁 Uploaded Files</h1> -->
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr><th>File</th><th>Size</th><th>Action</th></tr>
+      </thead>
+      <tbody id="file-table">
+        <tr><td colspan="3">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="progress-bar-wrapper">
+    <div class="progress-bar" id="progress-bar"></div>
+    <div class="progress-label" id="progress-label">Loading storage info...</div>
+  </div>
+
+  <a href="/" class="back-link">⬅ Back to Upload</a>
+
+  <script>
+    const devices = ['10.0.0.62', '10.0.0.81']; // Add more IPs as needed
+
+    async function loadFilesAndStorage() {
+      const tableBody = document.getElementById('file-table');
+      const progressBar = document.getElementById('progress-bar');
+      const progressLabel = document.getElementById('progress-label');
+
+      tableBody.innerHTML = '';
+
+      let total = 0, used = 0, files = [];
+
+      for (const ip of devices) {
+        try {
+          const res = await fetch(`http://${ip}:8000/files.json`);
+          const fileList = await res.json();
+
+          files = files.concat(fileList.map(f => ({ ...f, ip })));
+
+          const statsRes = await fetch(`http://${ip}:8000/stats`);
+          const stats = await statsRes.json();
+          total += stats.total;
+          used += stats.used;
+
+        } catch (err) {
+          console.error(`Failed to load from ${ip}:`, err);
+        }
+      }
+
+      if (files.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="3">No files found</td></tr>';
+      } else {
+        for (const file of files) {
+          const sizeKB = Math.round(file.size / 1024);
+          const row = `<tr>
+            <td><a class="filename" href="http://${file.ip}:8000/${encodeURIComponent(file.name)}" target="_blank">${file.name}</a></td>
+            <td>${sizeKB} KB</td>
+            <td><button class="delete-button" onclick="deleteFile('${file.name}', '${file.ip}')">Delete</button></td>
+          </tr>`;
+          tableBody.insertAdjacentHTML('beforeend', row);
+        }
+      }
+
+      const percent = Math.round((used / total) * 100);
+      progressBar.style.width = `${percent}%`;
+      progressLabel.textContent = `Storage Used: ${formatSize(used)} / ${formatSize(total)} (${percent}%)`;
+    }
+
+    function deleteFile(filename, ip) {
+      if (!confirm(`Delete "${filename}" from ${ip}?`)) return;
+      fetch(`http://${ip}:8000/${encodeURIComponent(filename)}`, { method: 'DELETE' })
+        .then(res => {
+          if (res.ok) location.reload();
+          else alert('Delete failed');
+        })
+        .catch(err => {
+          console.error(err);
+          alert('Error deleting file');
+        });
+    }
+
+    function formatSize(bytes) {
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      let i = 0;
+      while (bytes >= 1024 && i < sizes.length - 1) {
+        bytes /= 1024;
+        i++;
+      }
+      return `${bytes.toFixed(1)} ${sizes[i]}`;
+    }
+
+    loadFilesAndStorage();
+  </script>
+</body>
+</html>
