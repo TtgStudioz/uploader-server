@@ -1,3 +1,4 @@
+// server.js (Express App with Proxy Logic)
 const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
@@ -8,15 +9,14 @@ const axios = require('axios');
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
-const devices = ['10.0.0.62', '10.0.0.81']; // All Android node IPs
+const devices = ['10.0.0.62', '10.0.0.81']; // Add your Android node IPs here
 
-app.use(express.static('public')); // index.html here
+app.use(express.static('public'));
 
 // Upload endpoint
 app.post('/upload', upload.single('file'), async (req, res) => {
   const file = req.file;
 
-  // Find device with most free space
   let bestDevice = null;
   let maxFree = 0;
 
@@ -36,7 +36,6 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     return res.status(500).send('No devices available');
   }
 
-  // Upload the file to the chosen device
   const options = {
     hostname: bestDevice,
     port: 8000,
@@ -51,7 +50,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   const reqOut = http.request(options, (resp) => {
     resp.on('data', () => {});
     resp.on('end', () => {
-      fs.unlinkSync(file.path); // Delete temp
+      fs.unlinkSync(file.path);
       res.send(`Uploaded to ${bestDevice}`);
     });
   });
@@ -64,11 +63,42 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   });
 });
 
+// Serve files.html
 app.get('/files', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'files.html'));
 });
 
+// Proxy: Aggregate files from devices
+app.get('/proxy/files', async (req, res) => {
+  let allFiles = [];
+  for (const ip of devices) {
+    try {
+      const response = await axios.get(`http://${ip}:8000/files.json`);
+      const files = response.data.map(f => ({ ...f, ip }));
+      allFiles = allFiles.concat(files);
+    } catch (err) {
+      console.error(`Failed to get files from ${ip}`, err.message);
+    }
+  }
+  res.json(allFiles);
+});
 
-app.listen(3000, () => {
-  console.log('Unified upload site running at http://localhost:3000');
+// Proxy: Aggregate storage stats
+app.get('/proxy/stats', async (req, res) => {
+  let total = 0, used = 0;
+  for (const ip of devices) {
+    try {
+      const response = await axios.get(`http://${ip}:8000/stats`);
+      total += response.data.total;
+      used += response.data.used;
+    } catch (err) {
+      console.error(`Failed to get stats from ${ip}`, err.message);
+    }
+  }
+  res.json({ total, used });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Unified uploader running at http://localhost:${PORT}`);
 });

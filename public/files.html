@@ -14,12 +14,6 @@
       overflow-y: hidden;
     }
 
-    h1 {
-      text-align: center;
-      margin-bottom: 30px;
-      font-size: 2em;
-    }
-
     .table-container {
       max-width: 900px;
       margin: 0 auto;
@@ -44,6 +38,9 @@
     th {
       background-color: #3d4a52;
       color: #88c3f1;
+      position: sticky;
+      top: 0;
+      z-index: 2;
     }
 
     td:first-child {
@@ -58,6 +55,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      max-width: 400px;
     }
 
     td a.filename:hover {
@@ -88,10 +86,6 @@
       font-weight: bold;
     }
 
-    .back-link:hover {
-      color: #4a9dc3;
-    }
-
     .progress-bar-wrapper {
       width: 90%;
       max-width: 900px;
@@ -119,12 +113,11 @@
       body {
         padding: 0px;
       }
+
       table {
         border-radius: 0px;
       }
-      h1 {
-        font-size: 1.5em;
-      }
+
       th, td {
         padding: 10px;
       }
@@ -132,7 +125,6 @@
   </style>
 </head>
 <body>
-  <!-- <h1>📁 Uploaded Files</h1> -->
 
   <div class="table-container">
     <table>
@@ -153,8 +145,6 @@
   <a href="/" class="back-link">⬅ Back to Upload</a>
 
   <script>
-    const devices = ['10.0.0.62', '10.0.0.81']; // Add more IPs as needed
-
     async function loadFilesAndStorage() {
       const tableBody = document.getElementById('file-table');
       const progressBar = document.getElementById('progress-bar');
@@ -162,42 +152,36 @@
 
       tableBody.innerHTML = '';
 
-      let total = 0, used = 0, files = [];
+      try {
+        const filesRes = await fetch('/proxy/files');
+        const files = await filesRes.json();
 
-      for (const ip of devices) {
-        try {
-          const res = await fetch(`http://${ip}:8000/files.json`);
-          const fileList = await res.json();
+        const statsRes = await fetch('/proxy/stats');
+        const stats = await statsRes.json();
 
-          files = files.concat(fileList.map(f => ({ ...f, ip })));
-
-          const statsRes = await fetch(`http://${ip}:8000/stats`);
-          const stats = await statsRes.json();
-          total += stats.total;
-          used += stats.used;
-
-        } catch (err) {
-          console.error(`Failed to load from ${ip}:`, err);
+        if (files.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="3">No files found</td></tr>';
+        } else {
+          for (const file of files) {
+            const sizeKB = Math.round(file.size / 1024);
+            const row = `<tr>
+              <td><a class="filename" href="http://${file.ip}:8000/${encodeURIComponent(file.name)}" target="_blank">${file.name}</a></td>
+              <td>${sizeKB} KB</td>
+              <td><button class="delete-button" onclick="deleteFile('${file.name}', '${file.ip}')">Delete</button></td>
+            </tr>`;
+            tableBody.insertAdjacentHTML('beforeend', row);
+          }
         }
-      }
 
-      if (files.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="3">No files found</td></tr>';
-      } else {
-        for (const file of files) {
-          const sizeKB = Math.round(file.size / 1024);
-          const row = `<tr>
-            <td><a class="filename" href="http://${file.ip}:8000/${encodeURIComponent(file.name)}" target="_blank">${file.name}</a></td>
-            <td>${sizeKB} KB</td>
-            <td><button class="delete-button" onclick="deleteFile('${file.name}', '${file.ip}')">Delete</button></td>
-          </tr>`;
-          tableBody.insertAdjacentHTML('beforeend', row);
-        }
-      }
+        const percent = Math.round((stats.used / stats.total) * 100);
+        progressBar.style.width = `${percent}%`;
+        progressLabel.textContent = `Storage Used: ${formatSize(stats.used)} / ${formatSize(stats.total)} (${percent}%)`;
 
-      const percent = Math.round((used / total) * 100);
-      progressBar.style.width = `${percent}%`;
-      progressLabel.textContent = `Storage Used: ${formatSize(used)} / ${formatSize(total)} (${percent}%)`;
+      } catch (err) {
+        console.error('Failed to load files or storage:', err);
+        tableBody.innerHTML = '<tr><td colspan="3">Failed to load files</td></tr>';
+        progressLabel.textContent = 'Failed to load storage info';
+      }
     }
 
     function deleteFile(filename, ip) {
