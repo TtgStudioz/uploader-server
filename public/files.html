@@ -66,15 +66,16 @@
     .delete-button {
       cursor: pointer;
       border: none;
-      background-color: #ed5555;
-      padding: 5px 10px;
-      border-radius: 360px;
+      background-color: transparent;
+      /* padding: 5px 10px; */
+      /* border-radius: 360px; */
       color: whitesmoke;
       transition: background-color 0.3s ease;
     }
 
     .delete-button:hover {
-      background-color: #c0392b;
+      opacity: 0.8;
+      /* background-color: #c0392b; */
     }
 
     .back-link {
@@ -123,6 +124,7 @@
       }
     }
   </style>
+  <script src="https://kit.fontawesome.com/9f450d1229.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -142,9 +144,30 @@
     <div class="progress-label" id="progress-label">Loading storage info...</div>
   </div>
 
+  <!-- File Info Modal -->
+  <div id="fileModal" style="display: none; position: fixed; top: 0; left: 0; 
+    width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999; 
+    justify-content: center; align-items: center;">
+    <div style="background: #2a333a; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px;">
+      <h2 style="color: #88c3f1;">File Info</h2>
+      <p><strong>Name:</strong> <span id="modal-name"></span></p>
+      <p><strong>Size:</strong> <span id="modal-size"></span></p>
+      <p><strong>Type:</strong> <span id="modal-type"></span></p>
+      <p><strong>Date Created:</strong> <span id="modal-date"></span></p>
+      <p><strong>Stored on:</strong> <span id="modal-ip"></span></p>
+      <div style="margin-top: 20px; text-align: right;">
+        <button onclick="deleteFile(currentFile.name, currentFile.ip)" style="background: #ed5555; color: white; border: none; padding: 8px 14px; border-radius: 360px; margin-right: 10px;">Delete</button>
+        <button onclick="closeModal()" style="background: #ccc; border: none; padding: 8px 14px; border-radius: 360px;">Close</button>
+      </div>
+    </div>
+  </div>
+
+
   <a href="/" class="back-link">⬅ Back to Upload</a>
 
   <script>
+    let currentFile = null;
+
     async function loadFilesAndStorage() {
       const tableBody = document.getElementById('file-table');
       const progressBar = document.getElementById('progress-bar');
@@ -154,25 +177,45 @@
 
       try {
         const filesRes = await fetch('/proxy/files');
-        const files = await filesRes.json();
+        let files = await filesRes.json();
 
-        const statsRes = await fetch('/proxy/stats');
-        const stats = await statsRes.json();
+        // Fetch date for each file (HEAD request)
+        const filesWithDates = await Promise.all(files.map(async file => {
+          try {
+            const res = await fetch(`/proxy/file?ip=${file.ip}&name=${encodeURIComponent(file.name)}`, {
+              method: 'HEAD'
+            });
+            const lastModified = res.headers.get('last-modified');
+            return {
+              ...file,
+              lastModified: lastModified ? new Date(lastModified).getTime() : 0
+            };
+          } catch {
+            return { ...file, lastModified: 0 };
+          }
+        }));
 
-        if (files.length === 0) {
+        // Sort by lastModified (descending)
+        filesWithDates.sort((a, b) => b.lastModified - a.lastModified);
+
+        // Render
+        if (filesWithDates.length === 0) {
           tableBody.innerHTML = '<tr><td colspan="3">No files found</td></tr>';
         } else {
-          for (const file of files) {
+          for (const file of filesWithDates) {
             const sizeKB = Math.round(file.size / 1024);
             const row = `<tr>
               <td><a class="filename" href="/proxy/file?ip=${file.ip}&name=${encodeURIComponent(file.name)}" target="_blank">${file.name}</a></td>
               <td>${sizeKB} KB</td>
-              <td><button class="delete-button" onclick="deleteFile('${file.name}', '${file.ip}')">Delete</button></td>
+              <td><button class="delete-button" onclick='showFileInfo(${JSON.stringify(file)})'><i class="fa-solid fa-ellipsis-vertical"></i></button></td>
             </tr>`;
             tableBody.insertAdjacentHTML('beforeend', row);
           }
         }
 
+        // Fetch & show storage
+        const statsRes = await fetch('/proxy/stats');
+        const stats = await statsRes.json();
         const percent = Math.round((stats.used / stats.total) * 100);
         progressBar.style.width = `${percent}%`;
         progressLabel.textContent = `Storage Used: ${formatSize(stats.used)} / ${formatSize(stats.total)} (${percent}%)`;
@@ -183,6 +226,7 @@
         progressLabel.textContent = 'Failed to load storage info';
       }
     }
+
 
     function deleteFile(filename, ip) {
       if (!confirm(`Delete "${filename}" from ${ip}?`)) return;
@@ -197,6 +241,7 @@
         });
     }
 
+
     function formatSize(bytes) {
       const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
       let i = 0;
@@ -205,6 +250,49 @@
         i++;
       }
       return `${bytes.toFixed(1)} ${sizes[i]}`;
+    }
+
+    function showFileInfo(file) {
+      currentFile = file;
+      document.getElementById('modal-name').textContent = file.name;
+      document.getElementById('modal-size').textContent = formatSize(file.size);
+      document.getElementById('modal-ip').textContent = file.ip;
+      document.getElementById('modal-type').textContent = getFileType(file.name);
+      document.getElementById('modal-date').textContent = 'Loading...';
+
+      fetch(`/proxy/file?ip=${file.ip}&name=${encodeURIComponent(file.name)}`, {
+        method: 'HEAD'
+      })
+      .then(res => {
+        const date = res.headers.get('last-modified');
+        document.getElementById('modal-date').textContent = date || 'Unknown';
+      })
+      .catch(() => {
+        document.getElementById('modal-date').textContent = 'Unknown';
+      });
+
+      document.getElementById('fileModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('fileModal').style.display = 'none';
+    }
+
+    function getFileType(filename) {
+      const ext = filename.split('.').pop().toLowerCase();
+      const types = {
+        jpg: 'Image',
+        jpeg: 'Image',
+        png: 'Image',
+        gif: 'Image',
+        mp4: 'Video',
+        mp3: 'Audio',
+        pdf: 'PDF Document',
+        txt: 'Text File',
+        zip: 'ZIP Archive',
+        rar: 'RAR Archive'
+      };
+      return types[ext] || ext.toUpperCase() + ' File';
     }
 
     loadFilesAndStorage();

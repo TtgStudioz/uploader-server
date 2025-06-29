@@ -9,7 +9,7 @@ const axios = require('axios');
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
-const devices = ['10.0.0.62', '10.0.0.81', '10.0.0.244', '10.0.0.93']; // Add your Android node IPs here
+const devices = ['10.0.0.62', '10.0.0.244', '10.0.0.93']; // Add your Android node IPs here
 
 app.use(express.static('public'));
 
