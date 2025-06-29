@@ -19,13 +19,13 @@
       margin: 0 auto;
       overflow-x: auto;
       height: 70vh;
+      border-radius: 12px;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
       background: #2a333a;
-      border-radius: 12px;
       overflow: hidden;
     }
 
@@ -67,15 +67,12 @@
       cursor: pointer;
       border: none;
       background-color: transparent;
-      /* padding: 5px 10px; */
-      /* border-radius: 360px; */
       color: whitesmoke;
       transition: background-color 0.3s ease;
     }
 
     .delete-button:hover {
       opacity: 0.8;
-      /* background-color: #c0392b; */
     }
 
     .back-link {
@@ -123,10 +120,28 @@
         padding: 10px;
       }
     }
+
+    #deviceFilter {
+      background: #59b7e4;
+      color: #232323;
+      border: none;
+      padding: 6px 9px;
+      border-radius: 360px;
+      font-family: inherit;
+    }
+    label[for="deviceFilter"] {
+      color: #ccc;
+      font-size: 1em;
+      margin-right: 10px;
+    }
+
+
   </style>
   <script src="https://kit.fontawesome.com/9f450d1229.js" crossorigin="anonymous"></script>
 </head>
 <body>
+
+
 
   <div class="table-container">
     <table>
@@ -137,6 +152,17 @@
         <tr><td colspan="3">Loading...</td></tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- Filter Dropdown -->
+  <div style="background: #3d4a52;padding: 10px;border-radius:10px;margin:20px auto 0 auto;max-width: 880px;">
+    <label for="deviceFilter">Filter by Device:</label>
+    <select id="deviceFilter" onchange="loadFilesAndStorage()">
+      <option value="">All</option>
+      <option value="10.0.0.62">10.0.0.62</option>
+      <option value="10.0.0.244">10.0.0.244</option>
+      <option value="10.0.0.93">10.0.0.93</option>
+    </select>
   </div>
 
   <div class="progress-bar-wrapper">
@@ -162,7 +188,6 @@
     </div>
   </div>
 
-
   <a href="/" class="back-link">⬅ Back to Upload</a>
 
   <script>
@@ -172,6 +197,7 @@
       const tableBody = document.getElementById('file-table');
       const progressBar = document.getElementById('progress-bar');
       const progressLabel = document.getElementById('progress-label');
+      const selectedIp = document.getElementById('deviceFilter').value;
 
       tableBody.innerHTML = '';
 
@@ -179,30 +205,15 @@
         const filesRes = await fetch('/proxy/files');
         let files = await filesRes.json();
 
-        // Fetch date for each file (HEAD request)
-        const filesWithDates = await Promise.all(files.map(async file => {
-          try {
-            const res = await fetch(`/proxy/file?ip=${file.ip}&name=${encodeURIComponent(file.name)}`, {
-              method: 'HEAD'
-            });
-            const lastModified = res.headers.get('last-modified');
-            return {
-              ...file,
-              lastModified: lastModified ? new Date(lastModified).getTime() : 0
-            };
-          } catch {
-            return { ...file, lastModified: 0 };
-          }
-        }));
+        files = files.filter(file => !selectedIp || file.ip === selectedIp);
 
-        // Sort by lastModified (descending)
-        filesWithDates.sort((a, b) => b.lastModified - a.lastModified);
+        // Sort files by mtime descending (newest first)
+        files.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
 
-        // Render
-        if (filesWithDates.length === 0) {
+        if (files.length === 0) {
           tableBody.innerHTML = '<tr><td colspan="3">No files found</td></tr>';
         } else {
-          for (const file of filesWithDates) {
+          for (const file of files) {
             const sizeKB = Math.round(file.size / 1024);
             const row = `<tr>
               <td><a class="filename" href="/proxy/file?ip=${file.ip}&name=${encodeURIComponent(file.name)}" target="_blank">${file.name}</a></td>
@@ -213,7 +224,6 @@
           }
         }
 
-        // Fetch & show storage
         const statsRes = await fetch('/proxy/stats');
         const stats = await statsRes.json();
         const percent = Math.round((stats.used / stats.total) * 100);
@@ -227,7 +237,6 @@
       }
     }
 
-
     function deleteFile(filename, ip) {
       if (!confirm(`Delete "${filename}" from ${ip}?`)) return;
       fetch(`/proxy/delete?ip=${ip}&name=${encodeURIComponent(filename)}`, { method: 'DELETE' })
@@ -240,7 +249,6 @@
           alert('Error deleting file');
         });
     }
-
 
     function formatSize(bytes) {
       const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -258,18 +266,7 @@
       document.getElementById('modal-size').textContent = formatSize(file.size);
       document.getElementById('modal-ip').textContent = file.ip;
       document.getElementById('modal-type').textContent = getFileType(file.name);
-      document.getElementById('modal-date').textContent = 'Loading...';
-
-      fetch(`/proxy/file?ip=${file.ip}&name=${encodeURIComponent(file.name)}`, {
-        method: 'HEAD'
-      })
-      .then(res => {
-        const date = res.headers.get('last-modified');
-        document.getElementById('modal-date').textContent = date || 'Unknown';
-      })
-      .catch(() => {
-        document.getElementById('modal-date').textContent = 'Unknown';
-      });
+      document.getElementById('modal-date').textContent = file.mtime ? new Date(file.mtime * 1000).toLocaleString() : 'Unknown';
 
       document.getElementById('fileModal').style.display = 'flex';
     }

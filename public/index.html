@@ -14,7 +14,14 @@
     <input id="chooseFile" type="file" name="file" required><br>
     <button type="submit">Upload</button>
     <div id="status"></div>
+    <div id="uploadProgress" style="display: none; margin-top: 10px;">
+      <div style="background: #ccc; width: 100%; border-radius: 10px; overflow: hidden;">
+        <div id="progressBar" style="width: 0%; height: 20px; background: #59b7e4;"></div>
+      </div>
+      <div id="progressText" style="color: #888; font-size: 0.9em; margin-top: 5px;"></div>
+    </div>
   </form>
+
 
   <a href="files">📁 View Uploaded Files</a>
 
@@ -27,24 +34,46 @@
       const file = form.querySelector('input[type="file"]').files[0];
       if (!file) return;
 
-      statusDiv.textContent = '⏳ Uploading...';
+      const formData = new FormData();
+      formData.append('file', file);
 
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/upload');
 
-        const res = await fetch('/upload', {
-          method: 'POST',
-          body: formData
-        });
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          document.getElementById('uploadProgress').style.display = 'block';
+          document.getElementById('progressBar').style.width = percent + '%';
+          document.getElementById('progressText').textContent = percent < 100
+            ? `Uploading: ${percent}%`
+            : `Finishing upload to device...`;
+        }
+      };
 
-        const text = await res.text();
-        statusDiv.textContent = res.ok ? `✅ ${text}` : `❌ ${text}`;
-      } catch (err) {
-        console.error(err);
-        statusDiv.textContent = '❌ Upload error';
-      }
+      xhr.onload = () => {
+        const success = xhr.status >= 200 && xhr.status < 300;
+        document.getElementById('status').textContent = success ? `✅ ${xhr.responseText}` : `❌ ${xhr.responseText}`;
+
+        // Delay hiding the bar a bit to show "Finishing..." text
+        setTimeout(() => {
+          document.getElementById('uploadProgress').style.display = 'none';
+          document.getElementById('progressBar').style.width = '0%';
+          document.getElementById('progressText').textContent = '';
+        }, 1000);
+
+        if (success) form.reset();
+      };
+
+
+      xhr.onerror = () => {
+        document.getElementById('status').textContent = '❌ Upload error';
+        document.getElementById('uploadProgress').style.display = 'none';
+      };
+
+      xhr.send(formData);
     });
+
   </script>
 
 </body>
