@@ -165,7 +165,7 @@
           for (const file of files) {
             const sizeKB = Math.round(file.size / 1024);
             const row = `<tr>
-              <td><a class="filename" href="http://${file.ip}:8000/${encodeURIComponent(file.name)}" target="_blank">${file.name}</a></td>
+              <td><a class="filename" href="/proxy/file?ip=${file.ip}&name=${encodeURIComponent(file.name)}" target="_blank">${file.name}</a></td>
               <td>${sizeKB} KB</td>
               <td><button class="delete-button" onclick="deleteFile('${file.name}', '${file.ip}')">Delete</button></td>
             </tr>`;
@@ -186,7 +186,7 @@
 
     function deleteFile(filename, ip) {
       if (!confirm(`Delete "${filename}" from ${ip}?`)) return;
-      fetch(`http://${ip}:8000/${encodeURIComponent(filename)}`, { method: 'DELETE' })
+      fetch(`/proxy/delete?ip=${ip}&name=${encodeURIComponent(filename)}`, { method: 'DELETE' })
         .then(res => {
           if (res.ok) location.reload();
           else alert('Delete failed');

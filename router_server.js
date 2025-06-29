@@ -9,7 +9,7 @@ const axios = require('axios');
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
-const devices = ['10.0.0.62', '10.0.0.81']; // Add your Android node IPs here
+const devices = ['10.0.0.62', '10.0.0.81', '10.0.0.244', '10.0.0.93']; // Add your Android node IPs here
 
 app.use(express.static('public'));
 
@@ -83,6 +83,22 @@ app.get('/proxy/files', async (req, res) => {
   res.json(allFiles);
 });
 
+
+app.get('/proxy/file', async (req, res) => {
+  const { ip, name } = req.query;
+  try {
+    const fileRes = await axios.get(`http://${ip}:8000/${encodeURIComponent(name)}`, {
+      responseType: 'stream'
+    });
+    res.set(fileRes.headers); // Forward content-type and others
+    fileRes.data.pipe(res);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Failed to load file');
+  }
+});
+
+
 // Proxy: Aggregate storage stats
 app.get('/proxy/stats', async (req, res) => {
   let total = 0, used = 0;
@@ -97,6 +113,18 @@ app.get('/proxy/stats', async (req, res) => {
   }
   res.json({ total, used });
 });
+
+app.delete('/proxy/delete', async (req, res) => {
+  const { ip, name } = req.query;
+  try {
+    const response = await axios.delete(`http://${ip}:8000/${encodeURIComponent(name)}`);
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Failed to delete file');
+  }
+});
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
