@@ -9,7 +9,7 @@
 </head>
 <body>
   <div class="top-mobile-bar">
-    <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+    <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
     <select id="deviceFilter" onchange="loadFilesAndStorage()">
       <option value="">All Devices</option>
       <option value="10.0.0.62">10.0.0.62</option>
@@ -37,7 +37,7 @@
     <div class="table-container">
       <table>
         <thead>
-          <tr><th>File</th><th>Size</th><th>Action</th></tr>
+          <tr><th>File</th><th>Size</th><th>Owner</th><th>Action</th></tr>
         </thead>
         <tbody id="file-table">
           <tr><td colspan="3">Loading...</td></tr>
@@ -56,6 +56,8 @@
       <p><strong>Type:</strong> <span id="modal-type"></span></p>
       <p><strong>Date Created:</strong> <span id="modal-date"></span></p>
       <p><strong>Stored on:</strong> <span id="modal-ip"></span></p>
+      <p><strong>Owner:</strong> <span id="modal-owner"></span></p>
+
       <div style="margin-top: 20px; text-align: right;">
         <button onclick="deleteFile(currentFile.name, currentFile.ip)" style="background: #ed5555; color: white; border: none; padding: 8px 14px; border-radius: 360px; margin-right: 10px;">Delete</button>
         <button onclick="closeModal()" style="background: #ccc; border: none; padding: 8px 14px; border-radius: 360px;">Close</button>
@@ -101,8 +103,10 @@
             const row = `<tr>
               <td><a class="filename" href="/proxy/file?ip=${file.ip}&name=${encodeURIComponent(file.name)}" target="_blank">${icon} ${file.name}</a></td>
               <td>${sizeKB} KB</td>
+              <td>${file.owner || 'Unknown'}</td>
               <td><button class="delete-button" onclick='showFileInfo(${JSON.stringify(file)})'><i class="fa-solid fa-ellipsis-vertical"></i></button></td>
             </tr>`;
+
             tableBody.insertAdjacentHTML('beforeend', row);
           }
         }
@@ -150,6 +154,8 @@
       document.getElementById('modal-ip').textContent = file.ip;
       document.getElementById('modal-type').textContent = getFileType(file.name);
       document.getElementById('modal-date').textContent = file.mtime ? new Date(file.mtime * 1000).toLocaleString() : 'Unknown';
+      document.getElementById('modal-owner').textContent = file.owner || 'Unknown';
+
       document.getElementById('pop').style.display = 'block';
 
       document.getElementById('fileModal').style.display = 'flex';

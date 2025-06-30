@@ -16,6 +16,7 @@ app.use(express.static('public'));
 // Upload endpoint
 app.post('/upload', upload.single('file'), async (req, res) => {
   const file = req.file;
+  const uploaderEmail = req.headers['x-user-email'] || 'unknown@user.com';
 
   let bestDevice = null;
   let maxFree = 0;
@@ -39,7 +40,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   const options = {
     hostname: bestDevice,
     port: 8000,
-    path: `/${encodeURIComponent(file.originalname || file.filename)}`,
+    path: `/${encodeURIComponent(file.originalname || file.filename)}?email=${encodeURIComponent(uploaderEmail)}`,
     method: 'PUT',
     headers: {
       'Content-Length': fs.statSync(file.path).size
@@ -83,7 +84,6 @@ app.get('/proxy/files', async (req, res) => {
   res.json(allFiles);
 });
 
-
 app.get('/proxy/file', async (req, res) => {
   const { ip, name } = req.query;
   try {
@@ -97,7 +97,6 @@ app.get('/proxy/file', async (req, res) => {
     res.status(500).send('Failed to load file');
   }
 });
-
 
 // Proxy: Aggregate storage stats
 app.get('/proxy/stats', async (req, res) => {
@@ -124,7 +123,6 @@ app.delete('/proxy/delete', async (req, res) => {
     res.status(500).send('Failed to delete file');
   }
 });
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
