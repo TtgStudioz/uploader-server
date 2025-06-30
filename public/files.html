@@ -4,181 +4,52 @@
   <meta charset="UTF-8" />
   <title>Uploaded Files</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #1c2429;
-      color: whitesmoke;
-      margin: 0;
-      padding: 20px;
-      /* overflow-y: hidden; */
-    }
-
-    .table-container {
-      max-width: 900px;
-      margin: 0 auto;
-      overflow-x: auto;
-      height: 70vh;
-      border-radius: 12px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: #2a333a;
-      overflow: hidden;
-    }
-
-    th, td {
-      padding: 12px 16px;
-      text-align: left;
-      border-bottom: 1px solid #3a444b;
-    }
-
-    th {
-      background-color: #3d4a52;
-      color: #88c3f1;
-      position: sticky;
-      top: 0;
-      z-index: 2;
-    }
-
-    td:first-child {
-      max-width: 0;
-      width: 100%;
-    }
-
-    td a.filename {
-      color: #59b7e4;
-      text-decoration: none;
-      display: block;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      max-width: 400px;
-    }
-
-    td a.filename:hover {
-      text-decoration: underline;
-      color: #4a9dc3;
-    }
-
-    .delete-button {
-      cursor: pointer;
-      border: none;
-      background-color: transparent;
-      color: whitesmoke;
-      transition: background-color 0.3s ease;
-    }
-
-    .delete-button:hover {
-      opacity: 0.8;
-    }
-
-    .back-link {
-      display: block;
-      text-align: center;
-      margin-top: 20px;
-      text-decoration: none;
-      color: #59b7e4;
-      font-weight: bold;
-    }
-
-    .progress-bar-wrapper {
-      width: 90%;
-      max-width: 900px;
-      margin: 20px auto 0;
-      background: #333;
-      border-radius: 10px;
-      overflow: hidden;
-    }
-
-    .progress-bar {
-      height: 20px;
-      background: #59b7e4;
-      width: 0%;
-      transition: width 0.5s ease;
-    }
-
-    .progress-label {
-      text-align: center;
-      margin: 8px;
-      font-size: 0.9em;
-      color: #ccc;
-    }
-
-    @media (max-width: 600px) {
-      body {
-        padding: 0px;
-      }
-
-      table {
-        border-radius: 0px;
-      }
-
-      .table-container {
-        border-radius: 0px;
-      }
-
-      th, td {
-        padding: 10px;
-      }
-    }
-
-    #deviceFilter {
-      background: #59b7e4;
-      color: #232323;
-      border: none;
-      padding: 6px 9px;
-      border-radius: 360px;
-      font-family: inherit;
-    }
-    label[for="deviceFilter"] {
-      color: #ccc;
-      font-size: 1em;
-      margin-right: 10px;
-    }
-
-
-  </style>
+  <link rel="stylesheet" href="filestyle.css">
   <script src="https://kit.fontawesome.com/9f450d1229.js" crossorigin="anonymous"></script>
 </head>
 <body>
-
-
-
-  <div class="table-container">
-    <table>
-      <thead>
-        <tr><th>File</th><th>Size</th><th>Action</th></tr>
-      </thead>
-      <tbody id="file-table">
-        <tr><td colspan="3">Loading...</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Filter Dropdown -->
-  <div style="background: #3d4a52;padding: 10px;border-radius:10px;margin:20px auto 0 auto;max-width: 880px;">
-    <label for="deviceFilter">Filter by Device:</label>
+  <div class="top-mobile-bar">
+    <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
     <select id="deviceFilter" onchange="loadFilesAndStorage()">
-      <option value="">All</option>
+      <option value="">All Devices</option>
       <option value="10.0.0.62">10.0.0.62</option>
       <option value="10.0.0.244">10.0.0.244</option>
       <option value="10.0.0.93">10.0.0.93</option>
     </select>
   </div>
 
-  <div class="progress-bar-wrapper">
-    <div class="progress-bar" id="progress-bar"></div>
-    <div class="progress-label" id="progress-label">Loading storage info...</div>
+  <div class="sidebar" id="sidebar">
+    <div>
+      <div style="display: flex;">
+        <h2>Storage Usage</h2>
+        <button id="close-toggle" class="sidebar-toggle"style="font-size: 1.2em; margin: 0 0 0 auto;" onclick="toggleSidebar()"><i class="fa-solid fa-xmark"></i></button>
+
+      </div>
+      <div class="progress-bar-wrapper">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+      <div class="progress-label" id="progress-label">Loading...</div>
+    </div>
+    <a href="/" class="back-link"><i class="fa-solid fa-arrow-left"></i>Back to Upload</a>
   </div>
 
-  <!-- File Info Modal -->
-  <div id="fileModal" style="display: none; position: fixed; top: 0; left: 0; 
-    width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999; 
+  <div class="main-content">
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr><th>File</th><th>Size</th><th>Action</th></tr>
+        </thead>
+        <tbody id="file-table">
+          <tr><td colspan="3">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="fileModal" style="display: none; position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2;
     justify-content: center; align-items: center;">
-    <div style="background: #2a333a; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px;">
+    <div id="pop" style="background: #2a333a; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px;     box-sizing: border-box;">
       <h2 style="color: #88c3f1;">File Info</h2>
       <p><strong>Name:</strong> <span id="modal-name"></span></p>
       <p><strong>Size:</strong> <span id="modal-size"></span></p>
@@ -192,10 +63,19 @@
     </div>
   </div>
 
-  <a href="/" class="back-link">⬅ Back to Upload</a>
-
   <script>
     let currentFile = null;
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('hidden-mobile');
+      const modal = document.getElementById('fileModal');
+      if (modal.style.display === 'flex') {
+        modal.style.display = 'none';
+      } else {
+        modal.style.display = 'flex';
+      }
+      document.getElementById('pop').style.display = 'none';
+    }
 
     async function loadFilesAndStorage() {
       const tableBody = document.getElementById('file-table');
@@ -210,8 +90,6 @@
         let files = await filesRes.json();
 
         files = files.filter(file => !selectedIp || file.ip === selectedIp);
-
-        // Sort files by mtime descending (newest first)
         files.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
 
         if (files.length === 0) {
@@ -219,8 +97,9 @@
         } else {
           for (const file of files) {
             const sizeKB = Math.round(file.size / 1024);
+            const icon = getFileIcon(file.name);
             const row = `<tr>
-              <td><a class="filename" href="/proxy/file?ip=${file.ip}&name=${encodeURIComponent(file.name)}" target="_blank">${file.name}</a></td>
+              <td><a class="filename" href="/proxy/file?ip=${file.ip}&name=${encodeURIComponent(file.name)}" target="_blank">${icon} ${file.name}</a></td>
               <td>${sizeKB} KB</td>
               <td><button class="delete-button" onclick='showFileInfo(${JSON.stringify(file)})'><i class="fa-solid fa-ellipsis-vertical"></i></button></td>
             </tr>`;
@@ -271,6 +150,7 @@
       document.getElementById('modal-ip').textContent = file.ip;
       document.getElementById('modal-type').textContent = getFileType(file.name);
       document.getElementById('modal-date').textContent = file.mtime ? new Date(file.mtime * 1000).toLocaleString() : 'Unknown';
+      document.getElementById('pop').style.display = 'block';
 
       document.getElementById('fileModal').style.display = 'flex';
     }
@@ -282,21 +162,25 @@
     function getFileType(filename) {
       const ext = filename.split('.').pop().toLowerCase();
       const types = {
-        jpg: 'Image',
-        jpeg: 'Image',
-        png: 'Image',
-        gif: 'Image',
-        mp4: 'Video',
-        mp3: 'Audio',
-        pdf: 'PDF Document',
-        txt: 'Text File',
-        zip: 'ZIP Archive',
-        rar: 'RAR Archive'
+        jpg: 'Image', jpeg: 'Image', png: 'Image', gif: 'Image',
+        mp4: 'Video', mp3: 'Audio', pdf: 'PDF Document',
+        txt: 'Text File', zip: 'ZIP Archive', rar: 'RAR Archive'
       };
       return types[ext] || ext.toUpperCase() + ' File';
     }
 
-    loadFilesAndStorage();
+    function getFileIcon(filename) {
+      const ext = filename.split('.').pop().toLowerCase();
+      const icons = {
+        jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️',
+        mp4: '🎥', mp3: '🎵', pdf: '📄',
+        txt: '📃', zip: '🗜️', rar: '🗜️'
+      };
+      return icons[ext] || '📁';
+    }
+
+    // Call loadFilesAndStorage on page load, if not already handled by onchange
+    window.onload = loadFilesAndStorage; 
   </script>
 </body>
 </html>
