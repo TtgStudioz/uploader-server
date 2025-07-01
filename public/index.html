@@ -5,6 +5,8 @@
   <title>Upload a File</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="styles.css">
+  <script src="https://kit.fontawesome.com/9f450d1229.js" crossorigin="anonymous"></script>
+  <link rel="icon" type="image/png" href="cloud.png">
 </head>
 <body>
 
@@ -12,8 +14,10 @@
 
   <!-- Login Form -->
   <form id="loginForm">
-    <input type="email" id="emailInput" placeholder="Enter your email" required />
-    <button type="submit">Login</button>
+    <div id="loginContainer">
+      <input type="email" id="emailInput" placeholder="Enter your email" required />
+      <button type="submit" id="logBtn">Login</button>
+    </div>
   </form>
 
   <form id="uploadForm">
@@ -24,23 +28,45 @@
       <div style="background: #ccc; width: 100%; border-radius: 10px; overflow: hidden;">
         <div id="progressBar" style="width: 0%; height: 20px; background: #59b7e4;"></div>
       </div>
-      <div id="progressText" style="color: #888; font-size: 0.9em; margin-top: 5px;"></div>
+      <div id="progressText" style="color: #888; font-size: 0.9em; margin-top: 20px;"></div>
     </div>
   </form>
 
-  <a href="files">📁 View Uploaded Files</a>
+  <a href="files"><i class="fas fa-folder"></i> View Uploaded Files</a>
 
   <script>
     const loginForm = document.getElementById('loginForm');
     const emailInput = document.getElementById('emailInput');
+    const logBtn = document.getElementById('logBtn');
 
-    // Load saved email
-    window.onload = () => {
+    function updateLoginUI() {
       const savedEmail = localStorage.getItem('email');
       if (savedEmail) {
         emailInput.value = savedEmail;
+        emailInput.disabled = true;
+        logBtn.textContent = 'Change Email';
+      } else {
+        emailInput.value = '';
+        emailInput.disabled = false;
+        logBtn.textContent = 'Login';
       }
+    }
+
+    window.onload = () => {
+      updateLoginUI();
     };
+
+    logBtn.addEventListener('click', (e) => {
+      const savedEmail = localStorage.getItem('email');
+
+      // If already logged in and button is clicked, toggle to edit mode
+      if (savedEmail) {
+        e.preventDefault(); // prevent form submission
+        localStorage.removeItem('email');
+        updateLoginUI();
+      }
+      // else: allow normal submit
+    });
 
     loginForm.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -48,6 +74,9 @@
       if (email) {
         localStorage.setItem('email', email);
         alert('✅ Logged in as: ' + email);
+        updateLoginUI();
+      } else {
+        alert('❌ Please enter a valid email.');
       }
     });
 
@@ -55,6 +84,10 @@
     const statusDiv = document.getElementById('status');
 
     form.addEventListener('submit', async (e) => {
+      if (!localStorage.getItem('email')) {
+        alert('Please log in first.');
+        return;
+      }
       e.preventDefault();
       const file = form.querySelector('input[type="file"]').files[0];
       if (!file) return;

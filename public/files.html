@@ -14,7 +14,7 @@
       <option value="">All Devices</option>
       <option value="10.0.0.62">10.0.0.62</option>
       <option value="10.0.0.244">10.0.0.244</option>
-      <option value="10.0.0.93">10.0.0.93</option>
+      <!-- <option value="10.0.0.93">10.0.0.93</option> -->
     </select>
   </div>
 
@@ -23,12 +23,14 @@
       <div style="display: flex;">
         <h2>Storage Usage</h2>
         <button id="close-toggle" class="sidebar-toggle"style="font-size: 1.2em; margin: 0 0 0 auto;" onclick="toggleSidebar()"><i class="fa-solid fa-xmark"></i></button>
-
       </div>
       <div class="progress-bar-wrapper">
         <div class="progress-bar" id="progress-bar"></div>
       </div>
       <div class="progress-label" id="progress-label">Loading...</div>
+    </div>
+    <div id="emailName">
+      where's your email?
     </div>
     <a href="/" class="back-link"><i class="fa-solid fa-arrow-left"></i>Back to Upload</a>
   </div>
@@ -37,7 +39,7 @@
     <div class="table-container">
       <table>
         <thead>
-          <tr><th>File</th><th>Size</th><th>Owner</th><th>Action</th></tr>
+          <tr><th>File</th><th>Size</th><th>Owner</th><th><div id="desktopFilterContainer"></div></th></tr>
         </thead>
         <tbody id="file-table">
           <tr><td colspan="3">Loading...</td></tr>
@@ -48,8 +50,8 @@
 
   <div id="fileModal" style="display: none; position: fixed; top: 0; left: 0;
     width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2;
-    justify-content: center; align-items: center;">
-    <div id="pop" style="background: #2a333a; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px;     box-sizing: border-box;">
+    justify-content: center; align-items: center; backdrop-filter: blur(10px);">
+    <div id="pop" style="background: #2a333a; padding: 20px; border-radius: 20px; width: 90%; max-width: 400px;     box-sizing: border-box;">
       <h2 style="color: #88c3f1;">File Info</h2>
       <p><strong>Name:</strong> <span id="modal-name"></span></p>
       <p><strong>Size:</strong> <span id="modal-size"></span></p>
@@ -67,6 +69,8 @@
 
   <script>
     let currentFile = null;
+
+    document.getElementById('emailName').innerHTML = localStorage.getItem('email') || 'Where\'s your email?';
 
     function toggleSidebar() {
       document.getElementById('sidebar').classList.toggle('hidden-mobile');
@@ -101,7 +105,7 @@
             const sizeKB = Math.round(file.size / 1024);
             const icon = getFileIcon(file.name);
             const row = `<tr>
-              <td><a class="filename" href="/proxy/file?ip=${file.ip}&name=${encodeURIComponent(file.name)}" target="_blank">${icon} ${file.name}</a></td>
+              <td><a class="filename" href="/proxy/file?ip=${file.ip}&name=${encodeURIComponent(file.name)}" target="_blank">${icon} ${decodeURIComponent(file.name)}</a></td>
               <td>${sizeKB} KB</td>
               <td>${file.owner || 'Unknown'}</td>
               <td><button class="delete-button" onclick='showFileInfo(${JSON.stringify(file)})'><i class="fa-solid fa-ellipsis-vertical"></i></button></td>
@@ -115,7 +119,7 @@
         const stats = await statsRes.json();
         const percent = Math.round((stats.used / stats.total) * 100);
         progressBar.style.width = `${percent}%`;
-        progressLabel.textContent = `Storage Used: ${formatSize(stats.used)} / ${formatSize(stats.total)} (${percent}%)`;
+        progressLabel.textContent = ` ${formatSize(stats.used)} / ${formatSize(stats.total)} (${percent}%)`;
 
       } catch (err) {
         console.error('Failed to load files or storage:', err);
@@ -125,8 +129,8 @@
     }
 
     function deleteFile(filename, ip) {
-      if (!confirm(`Delete "${filename}" from ${ip}?`)) return;
-      fetch(`/proxy/delete?ip=${ip}&name=${encodeURIComponent(filename)}`, { method: 'DELETE' })
+      if (!confirm(`Delete "${decodeURIComponent(filename)}" from ${ip}?`)) return;
+      fetch(`/proxy/delete?ip=${ip}&name=${filename}`, { method: 'DELETE' })
         .then(res => {
           if (res.ok) location.reload();
           else alert('Delete failed');
@@ -149,7 +153,7 @@
 
     function showFileInfo(file) {
       currentFile = file;
-      document.getElementById('modal-name').textContent = file.name;
+      document.getElementById('modal-name').textContent = decodeURIComponent(file.name);
       document.getElementById('modal-size').textContent = formatSize(file.size);
       document.getElementById('modal-ip').textContent = file.ip;
       document.getElementById('modal-type').textContent = getFileType(file.name);
@@ -184,9 +188,31 @@
       };
       return icons[ext] || '📁';
     }
-
     // Call loadFilesAndStorage on page load, if not already handled by onchange
     window.onload = loadFilesAndStorage; 
+    function moveDeviceFilterIfDesktop() {
+      const filter = document.getElementById('deviceFilter');
+      const desktopContainer = document.getElementById('desktopFilterContainer');
+      const topBar = document.querySelector('.top-mobile-bar');
+
+      if (window.innerWidth >= 768) { // desktop breakpoint
+        if (desktopContainer && !desktopContainer.contains(filter)) {
+          desktopContainer.appendChild(filter);
+        }
+      } else {
+        if (topBar && !topBar.contains(filter)) {
+          topBar.appendChild(filter);
+        }
+      }
+    }
+
+    window.onload = () => {
+      loadFilesAndStorage();
+      moveDeviceFilterIfDesktop();
+    };
+
+    window.onresize = moveDeviceFilterIfDesktop;
+
   </script>
 </body>
 </html>

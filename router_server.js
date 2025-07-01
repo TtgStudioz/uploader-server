@@ -9,14 +9,15 @@ const axios = require('axios');
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
-const devices = ['10.0.0.62', '10.0.0.244', '10.0.0.93']; // Add your Android node IPs here
+// const devices = ['10.0.0.62', '10.0.0.244', '10.0.0.93']; 
+const devices = ['10.0.0.62', '10.0.0.244']; // Add your Android node IPs here
 
 app.use(express.static('public'));
 
 // Upload endpoint
 app.post('/upload', upload.single('file'), async (req, res) => {
   const file = req.file;
-  const uploaderEmail = req.headers['x-user-email'] || 'unknown@user.com';
+  const uploaderEmail = req.headers['x-user-email'] || 'Unknown';
 
   let bestDevice = null;
   let maxFree = 0;
