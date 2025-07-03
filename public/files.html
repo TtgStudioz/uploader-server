@@ -11,10 +11,10 @@
   <div class="top-mobile-bar">
     <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
     <select id="deviceFilter" onchange="loadFilesAndStorage()">
-      <option value="">All Devices</option>
+      <!-- <option value="">All Devices</option>
       <option value="10.0.0.62">10.0.0.62</option>
       <option value="10.0.0.244">10.0.0.244</option>
-      <!-- <option value="10.0.0.93">10.0.0.93</option> -->
+      <option value="10.0.0.93">10.0.0.93</option> -->
     </select>
   </div>
 
@@ -29,6 +29,8 @@
       </div>
       <div class="progress-label" id="progress-label">Loading...</div>
     </div>
+
+    <div id="devicesStats"></div>
     <div id="emailName">
       where's your email?
     </div>
@@ -88,10 +90,64 @@
       const progressBar = document.getElementById('progress-bar');
       const progressLabel = document.getElementById('progress-label');
       const selectedIp = document.getElementById('deviceFilter').value;
+      const deviceFilter = document.getElementById('deviceFilter');
 
       tableBody.innerHTML = '';
 
       try {
+        // Step 1: First, fetch /proxy/stats to update the server's workingDevicesCache
+        const statsRes = await fetch('/proxy/stats');
+        const stats = await statsRes.json();
+
+        const percent = Math.round((stats.used / stats.total) * 100);
+        progressBar.style.width = `${percent}%`;
+        progressLabel.textContent = ` ${formatSize(stats.used)} / ${formatSize(stats.total)} (${percent}%)`;
+
+        const devicesStatsDiv = document.getElementById('devicesStats');
+        devicesStatsDiv.innerHTML = ''; // Clear previous content
+
+        const allDevices = [...new Set([...stats.workingDevices, ...stats.failedDevices])];
+
+        allDevices.forEach((ip) => {
+          const label = document.createElement('label');
+          label.className = 'deviceLabel';
+          label.textContent = `${ip}: `;
+
+          const statusSpan = document.createElement('span');
+
+          if (stats.failedDevices.includes(ip)) {
+            statusSpan.textContent = 'Failed to load';
+            statusSpan.style.color = '#ff6666';
+          } else {
+            statusSpan.textContent = 'Online';
+            statusSpan.style.color = '#9ce990';
+          }
+
+          statusSpan.style.fontSize = '0.9em';
+
+          devicesStatsDiv.appendChild(label);
+          devicesStatsDiv.appendChild(statusSpan);
+          devicesStatsDiv.appendChild(document.createElement('br'));
+        });
+
+
+        // Clear and repopulate dropdown
+        deviceFilter.innerHTML = `<option value="">All Devices</option>`;
+        stats.workingDevices.forEach(ip => {
+          const option = document.createElement('option');
+          option.value = ip;
+          option.textContent = ip;
+          deviceFilter.appendChild(option);
+        });
+
+        // Restore selection if it still exists in the new list
+        if (stats.workingDevices.includes(selectedIp)) {
+          deviceFilter.value = selectedIp;
+        } else {
+          deviceFilter.value = ""; // fallback to "All Devices"
+        }
+
+        // Step 2: Now fetch /proxy/files which will now use only working devices
         const filesRes = await fetch('/proxy/files');
         let files = await filesRes.json();
 
@@ -115,18 +171,13 @@
           }
         }
 
-        const statsRes = await fetch('/proxy/stats');
-        const stats = await statsRes.json();
-        const percent = Math.round((stats.used / stats.total) * 100);
-        progressBar.style.width = `${percent}%`;
-        progressLabel.textContent = ` ${formatSize(stats.used)} / ${formatSize(stats.total)} (${percent}%)`;
-
       } catch (err) {
         console.error('Failed to load files or storage:', err);
         tableBody.innerHTML = '<tr><td colspan="3">Failed to load files</td></tr>';
         progressLabel.textContent = 'Failed to load storage info';
       }
     }
+
 
     function deleteFile(filename, ip) {
       if (!confirm(`Delete "${decodeURIComponent(filename)}" from ${ip}?`)) return;
@@ -159,9 +210,7 @@
       document.getElementById('modal-type').textContent = getFileType(file.name);
       document.getElementById('modal-date').textContent = file.mtime ? new Date(file.mtime * 1000).toLocaleString() : 'Unknown';
       document.getElementById('modal-owner').textContent = file.owner || 'Unknown';
-
       document.getElementById('pop').style.display = 'block';
-
       document.getElementById('fileModal').style.display = 'flex';
     }
 
@@ -184,12 +233,13 @@
       const icons = {
         jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️',
         mp4: '🎥', mp3: '🎵', pdf: '📄',
-        txt: '📃', zip: '🗜️', rar: '🗜️'
+        txt: '📃', zip: '🗜️', rar: '🗜️', wav: '🎵', mov: '🎥'
       };
       return icons[ext] || '📁';
     }
     // Call loadFilesAndStorage on page load, if not already handled by onchange
     window.onload = loadFilesAndStorage; 
+
     function moveDeviceFilterIfDesktop() {
       const filter = document.getElementById('deviceFilter');
       const desktopContainer = document.getElementById('desktopFilterContainer');
@@ -212,7 +262,6 @@
     };
 
     window.onresize = moveDeviceFilterIfDesktop;
-
   </script>
 </body>
 </html>

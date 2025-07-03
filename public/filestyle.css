@@ -39,6 +39,10 @@ body {
     flex-direction: column;
     gap: 20px;
     transition: transform 0.3s ease;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
 }
 
 .sidebar.hidden-mobile {
@@ -55,7 +59,7 @@ body {
     background: #6b6b6b;
     border-radius: 10px;
     overflow: hidden;
-    height: 20px;
+    height: 12px;
     width: 100%;
 }
 
@@ -92,6 +96,7 @@ body {
     padding: 20px;
     box-sizing: border-box;
     overflow-x: hidden;
+    margin-left: 250px;
 }
 
 #deviceFilter {
@@ -132,7 +137,7 @@ th {
     color: #88c3f1;
     position: sticky;
     top: 0;
-    z-index: 2;
+    /* z-index: 1; */
 }
 
 td a.filename {
@@ -181,11 +186,20 @@ table td a.filename:hover {
   outline: none;
 }
 
+.deviceLabel {
+    color: #88c3f1;
+    font-size: 0.9em;
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
 
 @media (max-width: 768px) {
     /* Show the top mobile bar and set its display to flex */
     .top-mobile-bar {
     display: flex; 
+    position:fixed;
+    z-index: 2;
+    border-bottom: solid 1px #343d44;
     }
     .sidebar-toggle {
     /* No longer fixed on mobile, part of the flex container */
@@ -211,7 +225,7 @@ table td a.filename:hover {
 
     .main-content {
     /* Add padding-top to account for the fixed top-mobile-bar */
-    /* padding-top: 60px;  */
+    padding-top: 70px; 
     margin-left: 0;
     padding-left: 10px;
     padding-right: 10px;
